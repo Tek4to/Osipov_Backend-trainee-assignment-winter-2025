@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:13
@@ -26,6 +24,24 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://user:password@db:5432/avito_merch
+    volumes:
+      - .:/app  # Монтируем текущую директорию в контейнер
+    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/info"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  tests:
+    build: .
+    depends_on:
+      web:
+        condition: service_healthy
+    volumes:
+      - .:/app  # Монтируем текущую директорию в контейнер
+    command: >
+      sh -c "pytest /app/tests > /app/test_results.txt 2>&1"
 
 volumes:
-  postgres_data:
+  postgres_data:  # Определяем том postgres_data

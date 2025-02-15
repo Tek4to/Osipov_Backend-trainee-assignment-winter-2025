@@ -23,31 +23,82 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
 
 @router.post("/register", response_model=schemas.User)
 def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
+    # Проверяем, что пользователь с таким именем не существует
     db_user = crud.get_user(db, username=user.username)
     if db_user:
         raise HTTPException(status_code=400, detail="Username already registered")
+
+    # Создаем нового пользователя
     hashed_password = auth.get_password_hash(user.password)
-    db_user = crud.create_user(db=db, user=schemas.UserCreate(username=user.username, password=hashed_password))
+    db_user = models.User(username=user.username, password=hashed_password)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
     return db_user
 
+MAX_COINS = 1000000
 @router.post("/send_coin")
 def send_coin(transfer: schemas.CoinTransfer, db: Session = Depends(database.get_db), current_user: schemas.User = Depends(auth.get_current_user)):
-    sender = crud.get_user(db, username=transfer.to_user)
-    if not sender:
-        raise HTTPException(status_code=404, detail="User not found")
+    # Проверяем, что у пользователя достаточно монет
     if current_user.coins < transfer.amount:
         raise HTTPException(status_code=400, detail="Not enough coins")
+
+    # Проверяем, что получатель не превысит максимальное количество монет
+    receiver = crud.get_user(db, username=transfer.to_user)
+    if receiver.coins + transfer.amount > MAX_COINS:
+        raise HTTPException(status_code=400, detail="Receiver would exceed maximum coin limit")
+    
+    # Проверяем, что пользователь не отправляет деньги самому себе
+    if transfer.to_user == current_user.username:
+        raise HTTPException(status_code=400, detail="Cannot send coins to yourself")
+
+    # Проверяем, что получатель существует
+    receiver = crud.get_user(db, username=transfer.to_user)
+    if not receiver:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Проверяем, что у отправителя достаточно монет
+    if current_user.coins < transfer.amount:
+        raise HTTPException(status_code=400, detail="Not enough coins")
+
+    # Выполняем перевод
     crud.update_user_coins(db, username=current_user.username, amount=-transfer.amount)
     crud.update_user_coins(db, username=transfer.to_user, amount=transfer.amount)
-    crud.create_transaction(db, from_user_id=current_user.id, to_user_id=sender.id, amount=transfer.amount)
+    crud.create_transaction(db, from_user_id=current_user.id, to_user_id=receiver.id, amount=transfer.amount)
     return {"message": "Coins transferred successfully"}
 
 @router.post("/buy_merch")
 def buy_merch(item: schemas.MerchItem, db: Session = Depends(database.get_db), current_user: schemas.User = Depends(auth.get_current_user)):
-    if current_user.coins < item.price:
+    # Проверяем, что у пользователя достаточно монет
+    if current_user.coins < transfer.amount:
         raise HTTPException(status_code=400, detail="Not enough coins")
-    crud.update_user_coins(db, username=current_user.username, amount=-item.price)
-    crud.add_inventory_item(db, username=current_user.username, item=schemas.InventoryItem(type=item.name, quantity=1))
+    
+    # Получаем товар из базы данных
+    db_item = db.query(models.MerchItem).filter(models.MerchItem.name == item.name).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    # Проверяем, что у пользователя достаточно монет
+    if current_user.coins < db_item.price:
+        raise HTTPException(status_code=400, detail="Not enough coins")
+
+    # Проверяем, есть ли товар в инвентаре
+    inventory_item = db.query(models.InventoryItem).filter(
+        models.InventoryItem.owner_id == current_user.id,
+        models.InventoryItem.type == db_item.name
+    ).first()
+
+    if inventory_item:
+        # Если товар уже есть, увеличиваем количество
+        inventory_item.quantity += 1
+    else:
+        # Если товара нет, добавляем его в инвентарь
+        inventory_item = models.InventoryItem(type=db_item.name, quantity=1, owner_id=current_user.id)
+        db.add(inventory_item)
+
+    # Списание монет
+    crud.update_user_coins(db, username=current_user.username, amount=-db_item.price)
+    db.commit()
     return {"message": "Merch bought successfully"}
 
 @router.get("/api/info", response_model=schemas.InfoResponse)

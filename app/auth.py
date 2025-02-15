@@ -22,9 +22,14 @@ def get_password_hash(password):
 def authenticate_user(db: Session, username: str, password: str):
     user = crud.get_user(db, username)
     if not user:
-        return False
-    if not verify_password(password, user.password):
-        return False
+        # Если пользователь не существует, регистрируем его
+        user = crud.create_user(db, schemas.UserCreate(username=username, password=password))
+    if not crud.verify_password(password, user.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return user
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
