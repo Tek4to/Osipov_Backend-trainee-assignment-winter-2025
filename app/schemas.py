@@ -39,3 +39,7 @@ class InfoResponse(BaseModel):
     coins: int
     inventory: List[InventoryItem]
     coinHistory: dict
+
+class TransferCoin(BaseModel):
+    receiver_username: str
+    amount: int

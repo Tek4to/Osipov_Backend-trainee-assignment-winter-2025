@@ -32,16 +32,5 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  tests:
-    build: .
-    depends_on:
-      web:
-        condition: service_healthy
-    volumes:
-      - .:/app  # Монтируем текущую директорию в контейнер
-    command: >
-      sh -c "pytest /app/tests > /app/test_results.txt 2>&1"
-
 volumes:
   postgres_data:  # Определяем том postgres_data

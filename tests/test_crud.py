@@ -3,6 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app import models, crud
 from app.schemas import UserCreate, InventoryItem, CoinTransfer
+from passlib.context import CryptContext
 
 # Настройка тестовой базы данных
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"

@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app import models, database
 from app.schemas import UserCreate, MerchItem, CoinTransfer
+from passlib.context import CryptContext
 
 # Настройка тестового клиента
 client = TestClient(app)
