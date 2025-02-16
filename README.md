@@ -20,3 +20,15 @@ docker-compose up --build
 
 ```bash
 docker-compose up --build
+
+
+
+## Для запуска тестов
+
+1. Убедитесь, что у вас установлен Python 3.9 или выше. Затем создайте виртуальное окружение и установите зависимости:
+
+python -m venv venv
+source venv/bin/activate  # Для Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+docker-compose exec web pytest --cov=app --cov-report=term > app/test_results.txt
