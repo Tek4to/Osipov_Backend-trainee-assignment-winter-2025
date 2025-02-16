@@ -17,7 +17,6 @@ docker-compose up --build
 2. Перейди в директорию проекта.
 3. Запусти проект командой:
 
-```bash
 docker-compose up --build
 
 
