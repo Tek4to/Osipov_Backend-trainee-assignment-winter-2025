@@ -1,11 +1,19 @@
 from sqlalchemy.orm import Session
 from . import models, schemas
+from passlib.context import CryptContext
+from .models import User
+from .schemas import UserCreate
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
 
 def get_user(db: Session, username: str):
     return db.query(models.User).filter(models.User.username == username).first()
 
-def create_user(db: Session, user: schemas.UserCreate):
-    db_user = models.User(username=user.username, password=user.password)
+def create_user(db: Session, user: UserCreate):
+    db_user = User(username=user.username, password=user.password)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)

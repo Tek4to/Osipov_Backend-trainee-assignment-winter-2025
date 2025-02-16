@@ -5,6 +5,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from . import schemas, crud, database
+from .crud import get_user, create_user
+from .schemas import UserCreate
 
 SECRET_KEY = "your-secret-key"
 ALGORITHM = "HS256"
@@ -20,11 +22,20 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 def authenticate_user(db: Session, username: str, password: str):
-    user = crud.get_user(db, username)
+    # Проверяем, существует ли пользователь
+    user = get_user(db, username)
+    
+    # Если пользователь не существует, создаем его
     if not user:
+        # Хешируем пароль перед сохранением
+        hashed_password = pwd_context.hash(password)
+        user_create = UserCreate(username=username, password=hashed_password)
+        user = create_user(db, user_create)
+    
+    # Проверяем пароль
+    if not pwd_context.verify(password, user.password):
         return False
-    if not verify_password(password, user.password):
-        return False
+    
     return user
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
