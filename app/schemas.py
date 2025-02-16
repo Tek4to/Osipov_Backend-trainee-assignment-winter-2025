@@ -26,7 +26,6 @@ class CoinTransfer(BaseModel):
 
 class MerchItem(BaseModel):
     name: str
-    price: int
 
 class Token(BaseModel):
     access_token: str
