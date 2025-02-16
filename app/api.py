@@ -1,9 +1,10 @@
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Path, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from . import crud, schemas, database, auth
 from . import models
+from typing import Annotated
 
 router = APIRouter()
 
@@ -46,14 +47,14 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
 
     # Хешируем пароль и создаем нового пользователя
     hashed_password = auth.get_password_hash(user.password)
-    db_user = models.User(username=user.username, password=hashed_password, coins=0)
+    db_user = models.User(username=user.username, password=hashed_password, coins=1000)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
 
 # Эндпоинт для перевода монет
-@router.post("/send_coin")
+@router.post("/api/send_coin")
 def send_coin(transfer: schemas.TransferCoin, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     # Получаем отправителя и получателя из базы данных
     sender = db.query(models.User).filter(models.User.username == current_user.username).first()
@@ -106,16 +107,21 @@ def send_coin(transfer: schemas.TransferCoin, db: Session = Depends(database.get
 
     return {"message": "Transfer successful"}
 
-# Эндпоинт для покупки товара
-@router.post("/buy_merch")
-def buy_merch(item: schemas.MerchItem, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+@router.get("/api/buy/{item}")
+def buy_merch(
+    item: Annotated[str, Path(description="Название товара для покупки")],
+    quantity: Annotated[int, Query(description="Количество товара для покупки", ge=1)] = 1,  # По умолчанию 1
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
     # Получаем товар из базы данных
-    db_item = db.query(models.MerchItem).filter(models.MerchItem.name == item.name).first()
+    db_item = db.query(models.MerchItem).filter(models.MerchItem.name == item).first()
     if not db_item:
         raise HTTPException(status_code=404, detail="Item not found")
 
     # Проверяем, что у пользователя достаточно монет
-    if current_user.coins < db_item.price:
+    total_cost = db_item.price * quantity
+    if current_user.coins < total_cost:
         raise HTTPException(status_code=400, detail="Not enough coins")
 
     # Проверяем, есть ли товар в инвентаре
@@ -126,17 +132,17 @@ def buy_merch(item: schemas.MerchItem, db: Session = Depends(database.get_db), c
 
     if inventory_item:
         # Если товар уже есть, увеличиваем количество
-        inventory_item.quantity += 1
+        inventory_item.quantity += quantity
     else:
         # Если товара нет, добавляем его в инвентарь
-        inventory_item = models.InventoryItem(type=db_item.name, quantity=1, owner_id=current_user.id)
+        inventory_item = models.InventoryItem(type=db_item.name, quantity=quantity, owner_id=current_user.id)
         db.add(inventory_item)
 
     # Списание монет
-    current_user.coins -= db_item.price
+    current_user.coins -= total_cost
     db.commit()
 
-    return {"message": "Merch bought successfully"}
+    return {"message": f"{quantity} {item}(s) bought successfully"}
 
 # Эндпоинт для получения информации о пользователе
 @router.get("/api/info", response_model=schemas.InfoResponse)
