@@ -17,6 +17,10 @@ docker-compose up --build
 2. Перейди в директорию проекта.
 3. Запусти проект командой:
 
+<<<<<<< V2
+```bash
+=======
+>>>>>>> main
 docker-compose up --build
 
 
@@ -29,7 +33,11 @@ python -m venv venv
 source venv/bin/activate  # Для Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
+<<<<<<< V2
+docker-compose exec web pytest --cov=app --cov-report=term > app/test_results.txt
+=======
 docker-compose exec web pytest --cov=app --cov-report=term > app/test_results.txt
 =======
 6. Протестировать API вы можете на http://localhost:8080/docs
+>>>>>>> main
 >>>>>>> main
