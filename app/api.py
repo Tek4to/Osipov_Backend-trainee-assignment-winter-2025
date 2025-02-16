@@ -91,6 +91,14 @@ def send_coin(transfer: schemas.TransferCoin, db: Session = Depends(database.get
     sender.coins -= transfer.amount
     receiver.coins += transfer.amount
 
+    # Логируем транзакцию
+    transaction = models.Transaction(
+        from_user_id=sender.id,
+        to_user_id=receiver.id,
+        amount=transfer.amount
+    )
+    db.add(transaction)
+
     # Сохраняем изменения в базе данных
     db.commit()
     db.refresh(sender)
@@ -134,9 +142,19 @@ def buy_merch(item: schemas.MerchItem, db: Session = Depends(database.get_db), c
 @router.get("/api/info", response_model=schemas.InfoResponse)
 def get_info(current_user: models.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
     # Получаем транзакции пользователя
-    transactions = crud.get_user_transactions(db, current_user.id)
-    received = [{"fromUser": t.from_user.username, "amount": t.amount} for t in transactions if t.to_user_id == current_user.id]
-    sent = [{"toUser": t.to_user.username, "amount": t.amount} for t in transactions if t.from_user_id == current_user.id]
+    transactions = db.query(models.Transaction).filter(
+        (models.Transaction.from_user_id == current_user.id) | (models.Transaction.to_user_id == current_user.id)
+    ).all()
+
+    # Формируем историю полученных и отправленных монет
+    received = [
+        {"fromUser": t.from_user.username, "amount": t.amount}
+        for t in transactions if t.to_user_id == current_user.id
+    ]
+    sent = [
+        {"toUser": t.to_user.username, "amount": t.amount}
+        for t in transactions if t.from_user_id == current_user.id
+    ]
 
     return {
         "coins": current_user.coins,

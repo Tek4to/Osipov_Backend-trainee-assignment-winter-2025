@@ -35,6 +35,11 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: str
 
+class TransactionHistory(BaseModel):
+    fromUser: str
+    toUser: str
+    amount: int
+    
 class InfoResponse(BaseModel):
     coins: int
     inventory: List[InventoryItem]
