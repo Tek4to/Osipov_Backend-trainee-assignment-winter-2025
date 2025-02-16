@@ -26,7 +26,6 @@ class CoinTransfer(BaseModel):
 
 class MerchItem(BaseModel):
     name: str
-    price: int
 
 class Token(BaseModel):
     access_token: str
@@ -35,7 +34,16 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: str
 
+class TransactionHistory(BaseModel):
+    fromUser: str
+    toUser: str
+    amount: int
+    
 class InfoResponse(BaseModel):
     coins: int
     inventory: List[InventoryItem]
     coinHistory: dict
+
+class TransferCoin(BaseModel):
+    receiver_username: str
+    amount: int
